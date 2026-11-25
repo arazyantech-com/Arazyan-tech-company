@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Arazyan Technologies</title>
+    <script>
+      const segments = window.location.pathname.split('/').filter(Boolean);
+      const repositoryPath = `/${segments[0] || ''}`;
+      const requestedPath = `/${segments.slice(1).join('/')}${window.location.search}${window.location.hash}`;
+      window.location.replace(
+        `${repositoryPath}/?__gh_pages_route=${encodeURIComponent(requestedPath)}`,
+      );
+    </script>
+  </head>
+  <body></body>
+</html>
