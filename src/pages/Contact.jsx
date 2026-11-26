@@ -1,12 +1,16 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Send } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import PageMeta from '../components/PageMeta';
 import { contactDetails } from '../data/contactDetails';
+import { services } from '../data/services';
 
 export default function Contact() {
-  const [values, setValues] = useState({ name: '', phone: '', email: '', message: '', consent: false });
+  const [values, setValues] = useState({ name: '', phone: '', email: '', message: '', service: '', consent: false });
   const [errors, setErrors] = useState({});
-  const [validationComplete, setValidationComplete] = useState(false);
+  const [result, setResult] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const submitting = useRef(false);
 
   const update = (event) => {
     const { name, value, checked, type } = event.target;
@@ -20,16 +24,48 @@ export default function Contact() {
     if (!values.email.trim()) next.email = 'Please enter your email address.';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email)) next.email = 'Please enter a valid email address.';
     if (!values.message.trim()) next.message = 'Please enter a message.';
+    if (!values.service) next.service = 'Please select a service.';
     if (!values.consent) next.consent = 'Please agree to the Terms and Conditions and acknowledge the Privacy Policy.';
     return next;
   };
 
-  const submit = (event) => {
+  const submit = async (event) => {
     event.preventDefault();
+    if (submitting.current) return;
     const next = validate();
     setErrors(next);
     if (Object.keys(next).length) return;
-    setValidationComplete(true);
+
+    submitting.current = true;
+    setIsSubmitting(true);
+    setResult(null);
+    try {
+      const formData = new FormData(event.currentTarget);
+      formData.append('access_key', 'f9a04cf6-f086-4eed-8dd5-8d8b6f24213d');
+      const response = await fetch('https://api.web3forms.com/submit', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await response.json();
+      if (!response.ok || !data?.success) {
+        throw new Error(typeof data?.message === 'string' ? data.message : 'Your message could not be sent. Please try again.');
+      }
+      setResult({
+        type: 'success',
+        message: "Thank you for reaching out. Your message has been sent successfully. We'll be in touch soon.",
+      });
+      setValues({ name: '', phone: '', email: '', message: '', service: '', consent: false });
+    } catch (error) {
+      setResult({
+        type: 'error',
+        message: error instanceof Error && error.name === 'Error'
+          ? error.message
+          : 'We could not send your message. Please check your connection and try again.',
+      });
+    } finally {
+      submitting.current = false;
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -40,7 +76,7 @@ export default function Contact() {
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-400">Contact</p>
             <h1 className="mt-4 text-4xl font-bold text-white md:text-5xl">Start a conversation</h1>
-            <p className="mt-6 leading-8 text-slate-400">Share a project idea or technology challenge. This form is prepared for a real submission backend and will not claim to send anything until that connection is configured.</p>
+            <p className="mt-6 leading-8 text-slate-400">Share a project idea or technology challenge.</p>
             <div className="mt-8 space-y-3 text-sm text-slate-400">
               <p><span className="text-slate-200">Email:</span> {contactDetails.email || 'Placeholder — to be added'}</p>
               <p><span className="text-slate-200">Phone:</span> {contactDetails.phone || 'Placeholder — to be added'}</p>
@@ -49,9 +85,16 @@ export default function Contact() {
           </div>
 
           <div className="glass-card rounded-3xl p-6 md:p-8">
-            {validationComplete && (
-              <p role="status" className="mb-5 rounded-xl border border-amber-400/20 bg-amber-400/5 px-4 py-3 text-sm text-amber-200">
-                Form validation passed, but no submission was sent because a backend or email service is not connected.
+            {result && (
+              <p
+                role={result.type === 'error' ? 'alert' : 'status'}
+                className={`mb-5 rounded-xl border px-4 py-3 text-sm ${
+                  result.type === 'success'
+                    ? 'border-emerald-400/20 bg-emerald-400/5 text-emerald-200'
+                    : 'border-red-400/20 bg-red-400/5 text-red-200'
+                }`}
+              >
+                {result.message}
               </p>
             )}
               <form onSubmit={submit} noValidate>
@@ -73,18 +116,30 @@ export default function Contact() {
                   {errors.email && <p id="email-error" className="form-error">{errors.email}</p>}
                 </div>
                 <div className="mt-5">
-                  <label htmlFor="message" className="form-label">Message</label>
+                  <label htmlFor="message" className="form-label">Project Description</label>
                   <textarea id="message" name="message" rows="6" value={values.message} onChange={update} className="form-input resize-y" aria-invalid={!!errors.message} aria-describedby={errors.message ? 'message-error' : undefined} />
                   {errors.message && <p id="message-error" className="form-error">{errors.message}</p>}
                 </div>
                 <div className="mt-5">
+                  <label htmlFor="service" className="form-label">What service are you interested in?</label>
+                  <select id="service" name="service" required value={values.service} onChange={update} className="form-input" aria-invalid={!!errors.service} aria-describedby={errors.service ? 'service-error' : undefined}>
+                    <option value="">Select a service</option>
+                    {services.map(({ title }) => <option key={title} value={title}>{title}</option>)}
+                  </select>
+                  {errors.service && <p id="service-error" className="form-error">{errors.service}</p>}
+                </div>
+                <div className="mt-5">
                   <label className="flex items-start gap-3 text-sm leading-6 text-slate-400">
-                    <input name="consent" type="checkbox" checked={values.consent} onChange={update} className="mt-1 h-4 w-4 rounded border-white/20 accent-blue-600" aria-invalid={!!errors.consent} />
-                    <span>I agree to the Terms and Conditions and acknowledge the Privacy Policy.</span>
+                    <input name="consent" type="checkbox" value="Agreed" required checked={values.consent} onChange={update} className="mt-1 h-4 w-4 rounded border-white/20 accent-blue-600" aria-invalid={!!errors.consent} />
+                    <span>
+                      I agree to the <Link to="/terms-and-conditions" className="text-blue-300 underline underline-offset-2">Terms and Conditions</Link> and <Link to="/privacy-policy" className="text-blue-300 underline underline-offset-2">Privacy Policy</Link> of Arazyan Technologies.
+                    </span>
                   </label>
                   {errors.consent && <p className="form-error">{errors.consent}</p>}
                 </div>
-                <button type="submit" className="primary-button mt-7 w-full sm:w-auto">Submit <Send size={17} /></button>
+                <button type="submit" disabled={isSubmitting} className="primary-button mt-7 w-full disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto">
+                  {isSubmitting ? 'Sending...' : 'Submit'} <Send size={17} />
+                </button>
               </form>
           </div>
         </div>
