@@ -7,7 +7,7 @@ const links = [
   { to: '/', label: 'Home' },
   { to: '/about', label: 'About' },
   { to: '/portfolio', label: 'Portfolio' },
-  { to: '/contact', label: 'Contact' },
+  { to: '/trading-technology', label: 'Trading Technology' },
 ];
 
 export default function Navbar() {
@@ -63,6 +63,7 @@ export default function Navbar() {
               {label}
             </NavLink>
           ))}
+          <Link to="/contact" onClick={() => setOpen(false)} className="mt-6 inline-flex rounded-xl bg-blue-600 px-5 py-3 text-base font-semibold text-white transition hover:bg-blue-500">Get in touch</Link>
         </nav>
       </div>
     </header>
